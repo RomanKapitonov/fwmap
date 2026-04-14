@@ -1,0 +1,15 @@
+[package]
+name = "fwmap"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+ar.workspace = true
+camino.workspace = true
+clap.workspace = true
+cargo_metadata.workspace = true
+object.workspace = true
+regex.workspace = true
+rustc-demangle.workspace = true
+serde.workspace = true
+serde_json.workspace = true
