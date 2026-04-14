@@ -79,11 +79,17 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture,
         ])
         .current_dir(&repo_root);
 
-    if args.profile == "release" {
-        command.arg("--release");
+    match args.profile.as_str() {
+        "release" => {
+            command.arg("--release");
+        }
+        "dev" => {}
+        other => {
+            command.args(["--profile", other]);
+        }
     }
     if !features.is_empty() {
-        command.args(["--features", &features.join(" ")]);
+        command.args(["--features", &features.join(",")]);
     }
 
     let output = command
