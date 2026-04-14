@@ -4,7 +4,7 @@ use clap::{ArgAction, Args, Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[command(
     name = "cargo xtask",
-    about = "Cross-platform project automation for memory diagnostics"
+    about = "Firmware memory reporting and budget validation"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -13,10 +13,6 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Emit the target-built size probe report.
-    SizeProbeReport(SizeProbeReportArgs),
-    /// Validate the target-built size probe report against a JSON budget.
-    SizeProbeValidate(SizeProbeValidateArgs),
     /// Build firmware and emit a target memory report.
     FirmwareReport(FirmwareReportArgs),
     /// Build firmware and validate target memory against a JSON budget.
@@ -24,27 +20,10 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct SizeProbeReportArgs {
-    /// Optional output path for the JSON report. Stdout is used when omitted.
-    #[arg(long)]
-    pub output: Option<Utf8PathBuf>,
-    /// Cargo target triple used for the size-probe build.
-    #[arg(long, default_value = "thumbv7em-none-eabihf")]
-    pub target: String,
-}
-
-#[derive(Debug, Clone, Args)]
-pub struct SizeProbeValidateArgs {
-    /// Budget file to validate against.
-    #[arg(long, default_value = "support/memory/size-probe-budget.json")]
-    pub budget: Utf8PathBuf,
-    /// Cargo target triple used for the size-probe build.
-    #[arg(long, default_value = "thumbv7em-none-eabihf")]
-    pub target: String,
-}
-
-#[derive(Debug, Clone, Args)]
 pub struct FirmwareReportArgs {
+    /// Cargo package to build.
+    #[arg(long, default_value = "stm32f429zi-example")]
+    pub package: String,
     /// Optional output path for the JSON report. Stdout is used when omitted.
     #[arg(long)]
     pub output: Option<Utf8PathBuf>,
@@ -71,6 +50,9 @@ pub struct FirmwareValidateArgs {
     /// Budget file to validate against.
     #[arg(long, default_value = "support/memory/firmware-memory-budget.json")]
     pub budget: Utf8PathBuf,
+    /// Cargo package to build.
+    #[arg(long, default_value = "stm32f429zi-example")]
+    pub package: String,
     /// Cargo target triple used for the firmware build.
     #[arg(long, default_value = "thumbv7em-none-eabihf")]
     pub target: String,
@@ -114,6 +96,7 @@ impl FirmwareValidateArgs {
 
     pub fn as_report_args(&self, allow_build_failure: bool) -> FirmwareReportArgs {
         FirmwareReportArgs {
+            package: self.package.clone(),
             output: None,
             target: self.target.clone(),
             profile: self.profile.clone(),

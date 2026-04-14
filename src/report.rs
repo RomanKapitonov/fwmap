@@ -3,17 +3,6 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SizeProbeReport {
-    pub schema_version: u32,
-    pub probe: String,
-    pub target: String,
-    pub pointer_width_bits: u32,
-    pub type_sizes: BTreeMap<String, u64>,
-    pub resource_counts: BTreeMap<String, u64>,
-    pub runtime_caps: BTreeMap<String, u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareMemoryReport {
     pub schema_version: u32,
     pub build: FirmwareBuildReport,
