@@ -11,7 +11,6 @@ use crate::{
     report::{FirmwareBuildReport, FirmwareLinkerReport, FirmwareMemoryReport},
 };
 
-const FIRMWARE_PACKAGE: &str = "stm32f429zi-example";
 const TOP_SYMBOL_COUNT: usize = 20;
 
 pub fn collect_firmware_report(args: &FirmwareReportArgs) -> Result<FirmwareMemoryReport, String> {
@@ -73,7 +72,7 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture,
         .args([
             "build",
             "-p",
-            FIRMWARE_PACKAGE,
+            &args.package,
             "--target",
             &args.target,
             "--message-format=json",
