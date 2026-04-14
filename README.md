@@ -58,6 +58,10 @@ Options:
   --allow-build-failure Emit report even when the build fails
 ```
 
+**Default features:** When `--features` is not specified, the defaults in `fwmap/src/cli.rs`
+are applied (currently `effect-runtime-experimental-dag,ccmram`). Update these defaults
+when integrating into a new project.
+
 Use `--allow-build-failure` when the firmware may not fit yet and you still want
 section sizes and overflow amounts.
 
@@ -102,7 +106,7 @@ Options:
 | `max_ram_overflow_bytes` | Max allowed RAM overflow in bytes (0 = must fit) |
 | `max_uninit_overflow_bytes` | Max allowed `.uninit` overflow in bytes |
 | `max_section_bytes` | Per-section size limits. Tracked sections: `.text`, `.rodata`, `.data`, `.bss`, `.uninit`, `.ccmram`, `.sdram` |
-| `max_symbol_prefix_bytes` | Size limit for the largest symbol whose name starts with the given prefix (matched against the top-N symbols from the map file) |
+| `max_symbol_prefix_bytes` | Size limit for the largest symbol whose name starts with the given prefix (matched against the top-N symbols from the map file). Validation fails if the prefix is not found — only use for symbols guaranteed to exist in the binary. |
 
 ## Report Format
 
