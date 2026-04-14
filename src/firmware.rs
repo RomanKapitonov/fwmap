@@ -199,6 +199,6 @@ fn capture_bytes(regex: &Regex, text: &str) -> u64 {
 fn repo_root() -> Utf8PathBuf {
     Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("xtask lives under the workspace root")
+        .expect("fwmap lives under the workspace root")
         .to_owned()
 }
