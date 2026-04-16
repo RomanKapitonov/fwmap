@@ -22,7 +22,7 @@ pub enum Command {
 #[derive(Debug, Clone, Args)]
 pub struct FirmwareReportArgs {
     /// Cargo package to build.
-    #[arg(long, default_value = "stm32f429zi-example")]
+    #[arg(long, default_value = "effects-mcu")]
     pub package: String,
     /// Optional output path for the JSON report. Stdout is used when omitted.
     #[arg(long)]
@@ -51,7 +51,7 @@ pub struct FirmwareValidateArgs {
     #[arg(long, default_value = "support/memory/firmware-memory-budget.json")]
     pub budget: Utf8PathBuf,
     /// Cargo package to build.
-    #[arg(long, default_value = "stm32f429zi-example")]
+    #[arg(long, default_value = "effects-mcu")]
     pub package: String,
     /// Cargo target triple used for the firmware build.
     #[arg(long, default_value = "thumbv7em-none-eabihf")]

@@ -50,7 +50,7 @@ Build firmware and emit a JSON memory report to stdout (or `--output <path>`).
 
 ```
 Options:
-  --package <PKG>       Cargo package to build [default: stm32f429zi-example]
+  --package <PKG>       Cargo package to build [default: effects-mcu]
   --output <PATH>       Output path for JSON (stdout if omitted)
   --target <TRIPLE>     Cargo target triple [default: thumbv7em-none-eabihf]
   --profile <PROFILE>   Cargo profile [default: release]
@@ -72,7 +72,7 @@ any constraint is violated.
 
 ```
 Options:
-  --package <PKG>   [default: stm32f429zi-example]
+  --package <PKG>   [default: effects-mcu]
   --budget <PATH>   [default: support/memory/firmware-memory-budget.json]
   --target <TRIPLE> [default: thumbv7em-none-eabihf]
   --profile <PROFILE> [default: release]
