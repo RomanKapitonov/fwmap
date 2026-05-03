@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::fs;
+use std::{collections::BTreeMap, fs};
 
 use camino::Utf8Path;
 use serde::Deserialize;
