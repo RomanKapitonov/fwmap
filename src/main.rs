@@ -27,7 +27,7 @@ fn main() -> ExitCode {
 fn run() -> Result<(), String> {
     let cli = Cli::parse();
 
-    match cli.command {
+    match cli.command_or_default() {
         Command::FirmwareReport(args) => {
             let report = collect_firmware_report(&args)?;
             write_firmware_report(args.output.as_deref(), &report)

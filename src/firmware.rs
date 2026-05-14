@@ -66,31 +66,10 @@ struct FirmwareBuildCapture {
 
 fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture, String> {
     let repo_root = repo_root();
-    let features = args.effective_features();
     let mut command = Command::new("cargo");
     command
-        .args([
-            "build",
-            "-p",
-            &args.package,
-            "--target",
-            &args.target,
-            "--message-format=json",
-        ])
+        .args(cargo_build_args(args, &repo_root))
         .current_dir(&repo_root);
-
-    match args.profile.as_str() {
-        "release" => {
-            command.arg("--release");
-        }
-        "dev" => {}
-        other => {
-            command.args(["--profile", other]);
-        }
-    }
-    if !features.is_empty() {
-        command.args(["--features", &features.join(",")]);
-    }
 
     let output = command
         .output()
@@ -121,6 +100,47 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture,
         map_path: repo_root.join("target/firmware.map"),
         elf_path,
     })
+}
+
+fn cargo_build_args(args: &FirmwareReportArgs, repo_root: &Utf8Path) -> Vec<String> {
+    let features = args.effective_features();
+    let manifest_path = Utf8PathBuf::from(format!("{}/Cargo.toml", args.package));
+    let mut cargo_args = vec!["build".to_owned(), "--locked".to_owned()];
+
+    if repo_root.join(&manifest_path).is_file() {
+        cargo_args.push("--manifest-path".to_owned());
+        cargo_args.push(manifest_path.to_string());
+    } else {
+        cargo_args.push("-p".to_owned());
+        cargo_args.push(args.package.clone());
+    }
+
+    cargo_args.extend([
+        "--target".to_owned(),
+        args.target.clone(),
+        "--message-format=json".to_owned(),
+    ]);
+
+    match args.profile.as_str() {
+        "release" => {
+            cargo_args.push("--release".to_owned());
+        }
+        "dev" => {}
+        other => {
+            cargo_args.push("--profile".to_owned());
+            cargo_args.push(other.to_owned());
+        }
+    }
+
+    if args.effective_no_default_features() {
+        cargo_args.push("--no-default-features".to_owned());
+    }
+    if !features.is_empty() {
+        cargo_args.push("--features".to_owned());
+        cargo_args.push(features.join(","));
+    }
+
+    cargo_args
 }
 
 fn parse_cargo_messages(stdout: &str) -> Result<(Option<Utf8PathBuf>, Vec<String>), String> {
@@ -206,4 +226,42 @@ fn repo_root() -> Utf8PathBuf {
         .parent()
         .expect("fwmap lives under the workspace root")
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cargo_build_args, repo_root};
+    use crate::cli::FirmwareReportArgs;
+
+    #[test]
+    fn default_firmware_build_uses_standalone_effects_manifest() {
+        let args = FirmwareReportArgs {
+            package: "effects-mcu".to_owned(),
+            output: None,
+            target: "thumbv7em-none-eabihf".to_owned(),
+            profile: "release".to_owned(),
+            features: Vec::new(),
+            no_default_features: false,
+            allow_build_failure: false,
+        };
+
+        let cargo_args = cargo_build_args(&args, &repo_root());
+
+        assert_eq!(
+            cargo_args,
+            [
+                "build",
+                "--locked",
+                "--manifest-path",
+                "effects-mcu/Cargo.toml",
+                "--target",
+                "thumbv7em-none-eabihf",
+                "--message-format=json",
+                "--release",
+                "--no-default-features",
+                "--features",
+                "greenfield-build,capture",
+            ]
+        );
+    }
 }

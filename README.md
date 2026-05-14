@@ -30,7 +30,7 @@ Add a cargo alias in `.cargo/config.toml`:
 
 ```toml
 [alias]
-xtask = "run -p fwmap --"
+fwmap = "run --locked -p fwmap --"
 ```
 
 Set project-specific defaults by editing the `default_value` attributes in
@@ -44,7 +44,12 @@ git subtree pull --prefix fwmap <repo-url> main --squash
 
 ## Commands
 
-### `cargo xtask firmware-report`
+### `cargo fwmap`
+
+Build firmware and emit a JSON memory report to stdout. This is equivalent to
+`cargo fwmap firmware-report --allow-build-failure`.
+
+### `cargo fwmap firmware-report`
 
 Build firmware and emit a JSON memory report to stdout (or `--output <path>`).
 
@@ -55,17 +60,18 @@ Options:
   --target <TRIPLE>     Cargo target triple [default: thumbv7em-none-eabihf]
   --profile <PROFILE>   Cargo profile [default: release]
   --features <F,...>    Feature flags, comma-separated, repeatable
+  --no-default-features  Disable the firmware crate's default feature set
   --allow-build-failure Emit report even when the build fails
 ```
 
 **Default features:** When `--features` is not specified, the defaults in `fwmap/src/cli.rs`
-are applied (currently `effect-runtime-experimental-dag,ccmram`). Update these defaults
+are applied (currently `greenfield-build,capture`). Update these defaults
 when integrating into a new project.
 
 Use `--allow-build-failure` when the firmware may not fit yet and you still want
 section sizes and overflow amounts.
 
-### `cargo xtask firmware-validate`
+### `cargo fwmap firmware-validate`
 
 Build firmware and validate memory usage against a JSON budget. Exits non-zero if
 any constraint is violated.
@@ -77,6 +83,7 @@ Options:
   --target <TRIPLE> [default: thumbv7em-none-eabihf]
   --profile <PROFILE> [default: release]
   --features <F,...>
+  --no-default-features
 ```
 
 ## Budget File Format
@@ -110,7 +117,7 @@ Options:
 
 ## Report Format
 
-`cargo xtask firmware-report` emits JSON:
+`cargo fwmap firmware-report` emits JSON:
 
 ```json
 {
