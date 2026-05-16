@@ -13,21 +13,17 @@ pub fn validate_firmware_budget(
         ));
     }
 
-    if let Some(limit) = budget.max_ram_overflow_bytes
-        && report.linker.ram_overflow_bytes > limit
-    {
+    if report.linker.ram_overflow_bytes > budget.max_ram_overflow_bytes {
         errors.push(format!(
-            "RAM overflow budget exceeded: actual={} limit={limit}",
-            report.linker.ram_overflow_bytes
+            "RAM overflow budget exceeded: actual={} limit={}",
+            report.linker.ram_overflow_bytes, budget.max_ram_overflow_bytes
         ));
     }
 
-    if let Some(limit) = budget.max_uninit_overflow_bytes
-        && report.linker.uninit_overflow_bytes > limit
-    {
+    if report.linker.uninit_overflow_bytes > budget.max_uninit_overflow_bytes {
         errors.push(format!(
-            "uninit overflow budget exceeded: actual={} limit={limit}",
-            report.linker.uninit_overflow_bytes
+            "uninit overflow budget exceeded: actual={} limit={}",
+            report.linker.uninit_overflow_bytes, budget.max_uninit_overflow_bytes
         ));
     }
 
@@ -45,18 +41,39 @@ pub fn validate_firmware_budget(
         }
     }
 
+    // max_symbol_prefix_bytes: size-only constraint. If the prefix
+    // does not match any top-N symbol, silently skip (the symbol may
+    // have been inlined or DCE-stripped).
     for (prefix, limit) in &budget.max_symbol_prefix_bytes {
+        if let Some(symbol) = report
+            .top_symbols
+            .iter()
+            .find(|symbol| symbol.symbol.starts_with(prefix))
+            && symbol.size_bytes > *limit
+        {
+            errors.push(format!(
+                "symbol budget exceeded for [{prefix}]: actual={} limit={limit}",
+                symbol.size_bytes
+            ));
+        }
+    }
+
+    // required_symbols: must exist AND fit under limit. Failure if
+    // prefix not found, failure if found AND oversized.
+    for (prefix, limit) in &budget.required_symbols {
         match report
             .top_symbols
             .iter()
             .find(|symbol| symbol.symbol.starts_with(prefix))
         {
             Some(symbol) if symbol.size_bytes > *limit => errors.push(format!(
-                "symbol budget exceeded for [{prefix}]: actual={} limit={limit}",
+                "required symbol budget exceeded for [{prefix}]: actual={} limit={limit}",
                 symbol.size_bytes
             )),
             Some(_) => {}
-            None => errors.push(format!("symbol prefix not found in report: [{prefix}]")),
+            None => errors.push(format!(
+                "required symbol prefix not found in report: [{prefix}]"
+            )),
         }
     }
 
