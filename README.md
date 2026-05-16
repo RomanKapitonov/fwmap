@@ -120,23 +120,29 @@ Options:
   "max_ram_overflow_bytes": 0,
   "max_uninit_overflow_bytes": 0,
   "max_section_bytes": {
-    ".ccmram": 65536,
-    ".bss": 131072
+    "Ccmram": 65536,
+    "Bss": 131072
   },
   "max_symbol_prefix_bytes": {
+    "optional_symbol_prefix": 1024
+  },
+  "required_symbols": {
     "my_crate::module::LARGE_BUFFER": 65536
   }
 }
 ```
 
+Every field is optional; missing fields default to "no constraint" (`false` / `0` / empty map). Unknown fields are rejected.
+
 | Field | Description |
 |---|---|
-| `require_successful_build` | Fail if the build exits non-zero |
-| `require_valid_stack_placement` | Fail if the linker reports invalid stack placement |
-| `max_ram_overflow_bytes` | Max allowed RAM overflow in bytes (0 = must fit) |
-| `max_uninit_overflow_bytes` | Max allowed `.uninit` overflow in bytes |
-| `max_section_bytes` | Per-section size limits. Tracked sections: `.text`, `.rodata`, `.data`, `.bss`, `.uninit`, `.ccmram`, `.sdram` |
-| `max_symbol_prefix_bytes` | Size limit for the largest symbol whose name starts with the given prefix (matched against the top-N symbols from the map file). Validation fails if the prefix is not found — only use for symbols guaranteed to exist in the binary. |
+| `require_successful_build` | Fail if the build exits non-zero (default: `false`). |
+| `require_valid_stack_placement` | Fail if the linker reports invalid stack placement (default: `false`). |
+| `max_ram_overflow_bytes` | Max allowed RAM overflow in bytes (0 = must fit). |
+| `max_uninit_overflow_bytes` | Max allowed `.uninit` overflow in bytes. |
+| `max_section_bytes` | Per-section size limits. Keys are `Section` variant identifiers (`Text`, `Rodata`, `Data`, `Bss`, `Uninit`, `Ccmram`, `Sdram`). |
+| `max_symbol_prefix_bytes` | Size limit for the largest symbol whose name starts with the given prefix. If no top-N symbol matches the prefix, the constraint is silently skipped (the symbol may have been inlined or DCE-stripped). Use for size-only budgets on symbols whose presence is not guaranteed. |
+| `required_symbols` | Like `max_symbol_prefix_bytes` but fails validation if no top-N symbol matches the prefix. Use when both "must exist" and "must fit" are required. |
 
 ## Report format
 
@@ -144,7 +150,6 @@ Options:
 
 ```json
 {
-  "schema_version": 1,
   "build": {
     "target": "thumbv7em-none-eabihf",
     "profile": "release",
@@ -152,7 +157,8 @@ Options:
     "succeeded": true,
     "exit_code": 0,
     "map_path": "target/firmware.map",
-    "elf_path": "target/thumbv7em-none-eabihf/release/my-firmware"
+    "elf_path": "target/thumbv7em-none-eabihf/release/my-firmware",
+    "section_source": "elf"
   },
   "linker": {
     "ram_overflow_bytes": 0,
@@ -160,20 +166,23 @@ Options:
     "stack_placement_failed": false
   },
   "sections": {
-    ".bss": 12345,
-    ".ccmram": 4096,
-    ".text": 98304
+    "Bss": 12345,
+    "Ccmram": 4096,
+    "Text": 98304
   },
   "top_symbols": [
     {
-      "section": ".bss",
+      "section": "Bss",
       "size_bytes": 8192,
-      "address": "20000000",
+      "address": 536870912,
       "symbol": "my_crate::module::POOL"
     }
   ]
 }
 ```
 
-When the build fails before producing an ELF, `elf_path` is `null` and
-sections are read from the `.map` file instead.
+The `build.section_source` field records whether section byte counts came
+from the ELF (`"elf"`), the linker map (`"map"`), or neither (`"none"`,
+when the build failed before producing either file). When the build fails
+before producing an ELF, `elf_path` is `null` and sections are read from
+the `.map` file instead. Symbol addresses are emitted as numeric `u64`.
