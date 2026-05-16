@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, fs};
 
+use anyhow::{Context, Result};
 use camino::Utf8Path;
 use regex::Regex;
 use rustc_demangle::try_demangle;
@@ -11,8 +12,8 @@ const TRACKED_SECTIONS: &[&str] = &[
 ];
 const TRACKED_SYMBOL_ROOTS: &[&str] = &[".bss", ".data", ".ccmram", ".uninit", ".sdram"];
 
-pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<String, u64>, String> {
-    let raw = fs::read_to_string(path).map_err(|err| format!("failed to read {path}: {err}"))?;
+pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<String, u64>> {
+    let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
     let regex = Regex::new(
         r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<name>\.[^\s]+)$",
     )
@@ -41,8 +42,8 @@ pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<String, u64>, Strin
     Ok(sections)
 }
 
-pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbolReport>, String> {
-    let raw = fs::read_to_string(path).map_err(|err| format!("failed to read {path}: {err}"))?;
+pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbolReport>> {
+    let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
     let lines: Vec<&str> = raw.lines().collect();
     let entry_regex = Regex::new(
         r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<object>.+):\((?P<section>\.[^)]+)\)$",
@@ -119,9 +120,9 @@ fn section_root(section: &str) -> &str {
         .unwrap_or(section)
 }
 
-fn parse_hex(value: &str) -> Result<u64, String> {
+fn parse_hex(value: &str) -> Result<u64> {
     u64::from_str_radix(value, 16)
-        .map_err(|err| format!("failed to parse hex value `{value}`: {err}"))
+        .with_context(|| format!("failed to parse hex value `{value}`"))
 }
 
 fn demangle_symbol(symbol: &str) -> String {

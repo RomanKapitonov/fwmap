@@ -8,8 +8,10 @@ mod validate;
 
 use std::process::ExitCode;
 
-use budget::load_firmware_memory_budget;
+use anyhow::Result;
 use clap::Parser;
+
+use budget::load_firmware_memory_budget;
 use cli::{Cli, Command};
 use firmware::{collect_firmware_report, write_firmware_report};
 use validate::validate_firmware_budget;
@@ -17,14 +19,14 @@ use validate::validate_firmware_budget;
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
-        Err(message) => {
-            eprintln!("{message}");
-            ExitCode::from(1)
+        Err(err) => {
+            eprintln!("error: {err:#}");
+            ExitCode::FAILURE
         }
     }
 }
 
-fn run() -> Result<(), String> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command_or_default() {
@@ -41,7 +43,7 @@ fn run() -> Result<(), String> {
                 println!("firmware memory validation passed");
                 Ok(())
             } else {
-                Err(errors.join("\n"))
+                anyhow::bail!(errors.join("\n"));
             }
         }
     }

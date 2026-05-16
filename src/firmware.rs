@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, process::Command};
 
+use anyhow::{Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use cargo_metadata::{Message, TargetKind};
 use regex::Regex;
@@ -13,7 +14,7 @@ use crate::{
 
 const TOP_SYMBOL_COUNT: usize = 20;
 
-pub fn collect_firmware_report(args: &FirmwareReportArgs) -> Result<FirmwareMemoryReport, String> {
+pub fn collect_firmware_report(args: &FirmwareReportArgs) -> Result<FirmwareMemoryReport> {
     let build = run_firmware_build(args)?;
     let features = args.effective_features();
     let linker = parse_linker_summary(&build.diagnostics);
@@ -44,12 +45,12 @@ pub fn collect_firmware_report(args: &FirmwareReportArgs) -> Result<FirmwareMemo
 pub fn write_firmware_report(
     path: Option<&Utf8Path>,
     report: &FirmwareMemoryReport,
-) -> Result<(), String> {
+) -> Result<()> {
     let rendered = serde_json::to_string_pretty(report)
-        .map_err(|err| format!("failed to serialize firmware report: {err}"))?;
+        .context("failed to serialize firmware report")?;
 
     if let Some(path) = path {
-        std::fs::write(path, rendered).map_err(|err| format!("failed to write {path}: {err}"))?;
+        std::fs::write(path, rendered).with_context(|| format!("failed to write {path}"))?;
     } else {
         println!("{rendered}");
     }
@@ -64,7 +65,7 @@ struct FirmwareBuildCapture {
     elf_path: Option<Utf8PathBuf>,
 }
 
-fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture, String> {
+fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture> {
     let repo_root = repo_root();
     let mut command = Command::new("cargo");
     command
@@ -73,9 +74,8 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture,
 
     let output = command
         .output()
-        .map_err(|err| format!("failed to run firmware build: {err}"))?;
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|err| format!("cargo build stdout was not valid UTF-8: {err}"))?;
+        .context("failed to run firmware build")?;
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     let (elf_path, rendered_messages) = parse_cargo_messages(&stdout)?;
 
@@ -89,9 +89,7 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture,
     }
 
     if exit_code != 0 && !args.allow_build_failure {
-        return Err(format!(
-            "firmware build failed with exit code {exit_code}\n{diagnostics}"
-        ));
+        anyhow::bail!("firmware build failed with exit code {exit_code}\n{diagnostics}");
     }
 
     Ok(FirmwareBuildCapture {
@@ -143,14 +141,13 @@ fn cargo_build_args(args: &FirmwareReportArgs, repo_root: &Utf8Path) -> Vec<Stri
     cargo_args
 }
 
-fn parse_cargo_messages(stdout: &str) -> Result<(Option<Utf8PathBuf>, Vec<String>), String> {
+fn parse_cargo_messages(stdout: &str) -> Result<(Option<Utf8PathBuf>, Vec<String>)> {
     let mut elf_path = None;
     let mut rendered_messages = Vec::new();
     let cursor = std::io::Cursor::new(stdout.as_bytes());
 
     for message in Message::parse_stream(cursor) {
-        let message =
-            message.map_err(|err| format!("failed to parse cargo JSON message: {err}"))?;
+        let message = message.context("failed to parse cargo JSON message")?;
         match message {
             Message::CompilerArtifact(artifact) => {
                 if artifact
@@ -199,7 +196,7 @@ fn parse_linker_summary(output: &str) -> FirmwareLinkerReport {
 fn collect_sections(
     elf_path: Option<&Utf8Path>,
     map_path: &Utf8Path,
-) -> Result<BTreeMap<String, u64>, String> {
+) -> Result<BTreeMap<String, u64>> {
     if let Some(elf_path) = elf_path
         && elf_path.is_file()
     {
