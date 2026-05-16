@@ -27,7 +27,6 @@ pub fn collect_firmware_report(
     };
 
     Ok(FirmwareMemoryReport {
-        schema_version: 1,
         build: FirmwareBuildReport {
             target: resolved.target.clone(),
             profile: resolved.profile.clone(),

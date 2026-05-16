@@ -7,7 +7,6 @@ use crate::section::Section;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareMemoryReport {
-    pub schema_version: u32,
     pub build: FirmwareBuildReport,
     pub linker: FirmwareLinkerReport,
     pub sections: BTreeMap<Section, u64>,
