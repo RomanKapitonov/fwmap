@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::str::FromStr;
 use std::sync::LazyLock;
-use std::{collections::BTreeMap, fs};
 
 use anyhow::{Context, Result};
 use camino::Utf8Path;
@@ -39,11 +40,14 @@ const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
 ];
 
 pub fn read_map_sections(path: &Utf8Path) -> Result<SectionReadout> {
-    let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("failed to open map file at {path}"))?;
+    let reader = std::io::BufReader::new(file);
     let mut sections = BTreeMap::new();
 
-    for line in raw.lines() {
-        let Some(captures) = MAP_SECTION_RE.captures(line) else {
+    for line in reader.lines() {
+        let line = line.with_context(|| format!("failed to read line from {path}"))?;
+        let Some(captures) = MAP_SECTION_RE.captures(&line) else {
             continue;
         };
         let Some(name) = captures.name("name").map(|capture| capture.as_str()) else {
@@ -72,14 +76,15 @@ pub fn read_map_sections(path: &Utf8Path) -> Result<SectionReadout> {
 }
 
 pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbolReport>> {
-    let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
-    let lines: Vec<&str> = raw.lines().collect();
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("failed to open map file at {path}"))?;
+    let reader = std::io::BufReader::new(file);
+    let mut lines = reader.lines().peekable();
     let mut symbols = Vec::new();
 
-    for window in lines.windows(2) {
-        let line = window[0];
-        let next = window[1];
-        let Some(entry) = MAP_ENTRY_RE.captures(line) else {
+    while let Some(line) = lines.next() {
+        let line = line.with_context(|| format!("failed to read line from {path}"))?;
+        let Some(entry) = MAP_ENTRY_RE.captures(&line) else {
             continue;
         };
 
@@ -111,7 +116,9 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
         let size_bytes = parse_hex(size_hex)?;
         let mut symbol = full_section.to_owned();
 
-        if let Some(next_symbol) = MAP_SYMBOL_RE.captures(next) {
+        if let Some(Ok(next_line)) = lines.peek()
+            && let Some(next_symbol) = MAP_SYMBOL_RE.captures(next_line)
+        {
             let next_vma_matches = next_symbol
                 .name("vma")
                 .map(|capture| capture.as_str())
