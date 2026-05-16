@@ -4,9 +4,10 @@ use anyhow::{Context, Result};
 use camino::Utf8Path;
 use object::{Object, ObjectSection};
 
+use crate::report::{SectionReadout, SectionSource};
 use crate::section::Section;
 
-pub fn read_elf_sections(path: &Utf8Path) -> Result<BTreeMap<Section, u64>> {
+pub fn read_elf_sections(path: &Utf8Path) -> Result<SectionReadout> {
     let bytes = fs::read(path).with_context(|| format!("failed to read {path}"))?;
     let object = object::File::parse(bytes.as_slice())
         .with_context(|| format!("failed to parse ELF {path}"))?;
@@ -26,5 +27,8 @@ pub fn read_elf_sections(path: &Utf8Path) -> Result<BTreeMap<Section, u64>> {
         *sections.entry(root).or_insert(0) += section.size();
     }
 
-    Ok(sections)
+    Ok(SectionReadout {
+        sections,
+        source: SectionSource::Elf,
+    })
 }

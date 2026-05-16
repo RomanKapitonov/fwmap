@@ -8,8 +8,9 @@ use regex::Regex;
 use crate::config::ResolvedReport;
 use crate::elf::read_elf_sections;
 use crate::map::{read_map_sections, read_top_symbols};
-use crate::report::{FirmwareBuildReport, FirmwareLinkerReport, FirmwareMemoryReport};
-use crate::section::Section;
+use crate::report::{
+    FirmwareBuildReport, FirmwareLinkerReport, FirmwareMemoryReport, SectionReadout, SectionSource,
+};
 use crate::workspace::WorkspaceLayout;
 use std::collections::BTreeMap;
 
@@ -19,7 +20,10 @@ pub fn collect_firmware_report(
 ) -> Result<FirmwareMemoryReport> {
     let build = run_firmware_build(resolved, layout)?;
     let linker = parse_linker_summary(&build.diagnostics);
-    let sections = collect_sections(build.elf_path.as_deref(), &build.map_path)?;
+    let SectionReadout {
+        sections,
+        source: section_source,
+    } = collect_sections(build.elf_path.as_deref(), &build.map_path)?;
     let top_symbols = if build.map_path.is_file() {
         read_top_symbols(&build.map_path, resolved.top_symbols)?
     } else {
@@ -35,6 +39,7 @@ pub fn collect_firmware_report(
             exit_code: build.exit_code,
             map_path: build.map_path.to_string(),
             elf_path: build.elf_path.map(|path| path.to_string()),
+            section_source,
         },
         linker,
         sections,
@@ -193,7 +198,7 @@ fn parse_linker_summary(output: &str) -> FirmwareLinkerReport {
 fn collect_sections(
     elf_path: Option<&Utf8Path>,
     map_path: &Utf8Path,
-) -> Result<BTreeMap<Section, u64>> {
+) -> Result<SectionReadout> {
     if let Some(elf_path) = elf_path
         && elf_path.is_file()
     {
@@ -204,7 +209,10 @@ fn collect_sections(
         return read_map_sections(map_path);
     }
 
-    Ok(BTreeMap::new())
+    Ok(SectionReadout {
+        sections: BTreeMap::new(),
+        source: SectionSource::None,
+    })
 }
 
 fn capture_bytes(regex: &Regex, text: &str) -> u64 {

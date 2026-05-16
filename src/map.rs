@@ -7,7 +7,7 @@ use regex::Regex;
 use rustc_demangle::try_demangle;
 
 use crate::address::HexAddress;
-use crate::report::FirmwareSymbolReport;
+use crate::report::{FirmwareSymbolReport, SectionReadout, SectionSource};
 use crate::section::Section;
 
 const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
@@ -18,7 +18,7 @@ const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
     Section::Sdram,
 ];
 
-pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<Section, u64>> {
+pub fn read_map_sections(path: &Utf8Path) -> Result<SectionReadout> {
     let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
     let regex = Regex::new(
         r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<name>\.[^\s]+)$",
@@ -49,7 +49,10 @@ pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<Section, u64>> {
         sections.insert(section, size);
     }
 
-    Ok(sections)
+    Ok(SectionReadout {
+        sections,
+        source: SectionSource::Map,
+    })
 }
 
 pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbolReport>> {

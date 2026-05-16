@@ -22,6 +22,21 @@ pub struct FirmwareBuildReport {
     pub exit_code: i32,
     pub map_path: String,
     pub elf_path: Option<String>,
+    pub section_source: SectionSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SectionSource {
+    Elf,
+    Map,
+    None,
+}
+
+#[derive(Debug)]
+pub struct SectionReadout {
+    pub sections: BTreeMap<Section, u64>,
+    pub source: SectionSource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
