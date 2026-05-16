@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::LazyLock;
 use std::{collections::BTreeMap, fs};
 
 use anyhow::{Context, Result};
@@ -10,6 +11,25 @@ use crate::address::HexAddress;
 use crate::report::{FirmwareSymbolReport, SectionReadout, SectionSource};
 use crate::section::Section;
 
+static MAP_SECTION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<name>\.[^\s]+)$",
+    )
+    .expect("section regex is valid")
+});
+static MAP_ENTRY_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<object>.+):\((?P<section>\.[^)]+)\)$",
+    )
+    .expect("entry regex is valid")
+});
+static MAP_SYMBOL_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<symbol>.+)$",
+    )
+    .expect("symbol regex is valid")
+});
+
 const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
     Section::Bss,
     Section::Data,
@@ -20,14 +40,10 @@ const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
 
 pub fn read_map_sections(path: &Utf8Path) -> Result<SectionReadout> {
     let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
-    let regex = Regex::new(
-        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<name>\.[^\s]+)$",
-    )
-    .expect("section regex is valid");
     let mut sections = BTreeMap::new();
 
     for line in raw.lines() {
-        let Some(captures) = regex.captures(line) else {
+        let Some(captures) = MAP_SECTION_RE.captures(line) else {
             continue;
         };
         let Some(name) = captures.name("name").map(|capture| capture.as_str()) else {
@@ -58,20 +74,12 @@ pub fn read_map_sections(path: &Utf8Path) -> Result<SectionReadout> {
 pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbolReport>> {
     let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
     let lines: Vec<&str> = raw.lines().collect();
-    let entry_regex = Regex::new(
-        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<object>.+):\((?P<section>\.[^)]+)\)$",
-    )
-    .expect("entry regex is valid");
-    let symbol_regex = Regex::new(
-        r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<symbol>.+)$",
-    )
-    .expect("symbol regex is valid");
     let mut symbols = Vec::new();
 
     for window in lines.windows(2) {
         let line = window[0];
         let next = window[1];
-        let Some(entry) = entry_regex.captures(line) else {
+        let Some(entry) = MAP_ENTRY_RE.captures(line) else {
             continue;
         };
 
@@ -103,7 +111,7 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
         let size_bytes = parse_hex(size_hex)?;
         let mut symbol = full_section.to_owned();
 
-        if let Some(next_symbol) = symbol_regex.captures(next) {
+        if let Some(next_symbol) = MAP_SYMBOL_RE.captures(next) {
             let next_vma_matches = next_symbol
                 .name("vma")
                 .map(|capture| capture.as_str())

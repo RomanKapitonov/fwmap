@@ -1,9 +1,27 @@
 use std::process::Command;
+use std::sync::LazyLock;
 
 use anyhow::{Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use cargo_metadata::{Message, TargetKind};
 use regex::Regex;
+
+static RAM_OVERFLOW_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"section '\.bss' will not fit in region 'RAM': overflowed by (?P<bytes>\d+) bytes",
+    )
+    .expect("RAM overflow regex is valid")
+});
+static UNINIT_OVERFLOW_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"section '\.uninit' will not fit in region 'RAM': overflowed by (?P<bytes>\d+) bytes",
+    )
+    .expect("uninit overflow regex is valid")
+});
+static STACK_PLACEMENT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"stack end address is not below stack start")
+        .expect("stack placement regex is valid")
+});
 
 use crate::config::ResolvedReport;
 use crate::elf::read_elf_sections;
@@ -177,21 +195,10 @@ fn parse_cargo_messages(stdout: &str) -> Result<(Option<Utf8PathBuf>, Vec<String
 }
 
 fn parse_linker_summary(output: &str) -> FirmwareLinkerReport {
-    let ram_overflow = Regex::new(
-        r"section '\.bss' will not fit in region 'RAM': overflowed by (?P<bytes>\d+) bytes",
-    )
-    .expect("RAM overflow regex is valid");
-    let uninit_overflow = Regex::new(
-        r"section '\.uninit' will not fit in region 'RAM': overflowed by (?P<bytes>\d+) bytes",
-    )
-    .expect("uninit overflow regex is valid");
-    let stack_placement = Regex::new(r"stack end address is not below stack start")
-        .expect("stack placement regex is valid");
-
     FirmwareLinkerReport {
-        ram_overflow_bytes: capture_bytes(&ram_overflow, output),
-        uninit_overflow_bytes: capture_bytes(&uninit_overflow, output),
-        stack_placement_failed: stack_placement.is_match(output),
+        ram_overflow_bytes: capture_bytes(&RAM_OVERFLOW_RE, output),
+        uninit_overflow_bytes: capture_bytes(&UNINIT_OVERFLOW_RE, output),
+        stack_placement_failed: STACK_PLACEMENT_RE.is_match(output),
     }
 }
 
