@@ -1,27 +1,15 @@
-mod address;
-mod budget;
-mod cli;
-mod config;
-mod elf;
-mod firmware;
-mod map;
-mod report;
-mod section;
-mod validate;
-mod workspace;
-
 use std::process::ExitCode;
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
 
-use budget::load_firmware_memory_budget;
-use cli::{Cli, Command};
-use config::{FwmapConfig, ResolvedReport, ResolvedValidate};
-use firmware::{collect_firmware_report, write_firmware_report};
-use validate::validate_firmware_budget;
-use workspace::WorkspaceLayout;
+use fwmap::budget::load_firmware_memory_budget;
+use fwmap::cli::{Cli, Command};
+use fwmap::config::{FwmapConfig, ResolvedReport, ResolvedValidate};
+use fwmap::firmware::{collect_firmware_report, write_firmware_report};
+use fwmap::validate::validate_firmware_budget;
+use fwmap::workspace::WorkspaceLayout;
 
 fn main() -> ExitCode {
     match run() {
