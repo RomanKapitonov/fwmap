@@ -34,7 +34,7 @@ mod tests {
     fn missing_budget_file_error_chains_with_path_context() {
         let path = Utf8PathBuf::from("nonexistent-budget.json");
         let err = load_firmware_memory_budget(&path).unwrap_err();
-        let chain: Vec<String> = err.chain().map(|e| e.to_string()).collect();
+        let chain: Vec<String> = err.chain().map(ToString::to_string).collect();
         assert!(
             chain.iter().any(|msg| msg.contains("nonexistent-budget.json")),
             "expected path in error chain, got: {chain:?}"

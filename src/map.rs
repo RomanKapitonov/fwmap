@@ -143,7 +143,7 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
         });
     }
 
-    symbols.sort_by(|left, right| right.size_bytes.cmp(&left.size_bytes));
+    symbols.sort_by_key(|symbol| std::cmp::Reverse(symbol.size_bytes));
     symbols.truncate(top);
     Ok(symbols)
 }

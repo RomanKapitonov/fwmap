@@ -27,6 +27,7 @@ impl Section {
         Section::Sdram,
     ];
 
+    #[must_use]
     pub fn as_linker_name(self) -> &'static str {
         match self {
             Self::Text => ".text",

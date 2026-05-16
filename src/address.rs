@@ -42,7 +42,7 @@ mod tests {
     fn parses_bare_hex() {
         assert_eq!(
             HexAddress::from_str("20000000").unwrap(),
-            HexAddress(0x20000000)
+            HexAddress(0x2000_0000)
         );
     }
 
@@ -50,24 +50,24 @@ mod tests {
     fn parses_with_0x_prefix() {
         assert_eq!(
             HexAddress::from_str("0x20000000").unwrap(),
-            HexAddress(0x20000000)
+            HexAddress(0x2000_0000)
         );
     }
 
     #[test]
     fn display_writes_0x_prefix_lowercase() {
-        assert_eq!(HexAddress(0x20000000).to_string(), "0x20000000");
+        assert_eq!(HexAddress(0x2000_0000).to_string(), "0x20000000");
     }
 
     #[test]
     fn serializes_as_numeric_u64() {
-        let json = serde_json::to_string(&HexAddress(0x20000000)).unwrap();
+        let json = serde_json::to_string(&HexAddress(0x2000_0000)).unwrap();
         assert_eq!(json, "536870912");
     }
 
     #[test]
     fn deserializes_from_numeric_u64() {
         let addr: HexAddress = serde_json::from_str("536870912").unwrap();
-        assert_eq!(addr, HexAddress(0x20000000));
+        assert_eq!(addr, HexAddress(0x2000_0000));
     }
 }

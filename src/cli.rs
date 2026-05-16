@@ -66,6 +66,7 @@ pub struct FirmwareValidateArgs {
 }
 
 impl Cli {
+    #[must_use]
     pub fn command_or_default(self) -> Command {
         self.command
             .unwrap_or_else(|| Command::FirmwareReport(FirmwareReportArgs::default_for_no_subcommand()))

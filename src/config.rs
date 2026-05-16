@@ -212,7 +212,7 @@ no-default-features = true
         let config_path = dir.path().join("fwmap.toml");
         fs::write(&config_path, "pkg = \"oops\"\n").unwrap();
         let err = FwmapConfig::discover(&utf8(dir.path())).unwrap_err();
-        let chain: Vec<String> = err.chain().map(|e| e.to_string()).collect();
+        let chain: Vec<String> = err.chain().map(ToString::to_string).collect();
         assert!(
             chain.iter().any(|m| m.contains("unknown field")),
             "expected unknown-field error, got: {chain:?}"

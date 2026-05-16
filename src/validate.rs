@@ -1,5 +1,6 @@
 use crate::{budget::FirmwareMemoryBudget, report::FirmwareMemoryReport};
 
+#[must_use]
 pub fn validate_firmware_budget(
     report: &FirmwareMemoryReport,
     budget: &FirmwareMemoryBudget,
