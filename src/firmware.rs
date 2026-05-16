@@ -100,17 +100,17 @@ fn run_firmware_build(
     let output = command.output().context("failed to run firmware build")?;
     let stdout = String::from_utf8(output.stdout)
         .context("cargo build stdout was not valid UTF-8")?;
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let stderr: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stderr);
     let (elf_path, rendered_messages) = parse_cargo_messages(&stdout)?;
 
     let exit_code = output.status.code().unwrap_or(1);
-    let mut diagnostics = stderr;
-    if !rendered_messages.is_empty() {
-        if !diagnostics.is_empty() {
-            diagnostics.push('\n');
-        }
-        diagnostics.push_str(&rendered_messages.join("\n"));
-    }
+    let diagnostics: String = if rendered_messages.is_empty() {
+        stderr.into_owned()
+    } else if stderr.is_empty() {
+        rendered_messages.join("\n")
+    } else {
+        format!("{}\n{}", stderr, rendered_messages.join("\n"))
+    };
 
     if exit_code != 0 && !resolved.allow_build_failure {
         anyhow::bail!("firmware build failed with exit code {exit_code}\n{diagnostics}");
