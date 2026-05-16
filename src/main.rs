@@ -1,5 +1,6 @@
 mod budget;
 mod cli;
+mod config;
 mod elf;
 mod firmware;
 mod map;
