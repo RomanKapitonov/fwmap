@@ -75,7 +75,8 @@ fn run_firmware_build(args: &FirmwareReportArgs) -> Result<FirmwareBuildCapture>
     let output = command
         .output()
         .context("failed to run firmware build")?;
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stdout = String::from_utf8(output.stdout)
+        .context("cargo build stdout was not valid UTF-8")?;
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     let (elf_path, rendered_messages) = parse_cargo_messages(&stdout)?;
 
