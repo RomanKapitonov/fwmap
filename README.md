@@ -132,8 +132,6 @@ Options:
 }
 ```
 
-Every field is optional; missing fields default to "no constraint" (`false` / `0` / empty map). Unknown fields are rejected.
-
 | Field | Description |
 |---|---|
 | `require_successful_build` | Fail if the build exits non-zero (default: `false`). |
