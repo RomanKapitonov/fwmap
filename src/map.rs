@@ -6,13 +6,17 @@ use regex::Regex;
 use rustc_demangle::try_demangle;
 
 use crate::report::FirmwareSymbolReport;
+use crate::section::Section;
 
-const TRACKED_SECTIONS: &[&str] = &[
-    ".text", ".rodata", ".data", ".bss", ".uninit", ".ccmram", ".sdram",
+const TRACKED_SYMBOL_SECTIONS: &[Section] = &[
+    Section::Bss,
+    Section::Data,
+    Section::Ccmram,
+    Section::Uninit,
+    Section::Sdram,
 ];
-const TRACKED_SYMBOL_ROOTS: &[&str] = &[".bss", ".data", ".ccmram", ".uninit", ".sdram"];
 
-pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<String, u64>> {
+pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<Section, u64>> {
     let raw = fs::read_to_string(path).with_context(|| format!("failed to read {path}"))?;
     let regex = Regex::new(
         r"^(?P<vma>[0-9a-f]+)\s+(?P<lma>[0-9a-f]+)\s+(?P<size>[0-9a-f]+)\s+\d+\s+(?P<name>\.[^\s]+)$",
@@ -27,16 +31,20 @@ pub fn read_map_sections(path: &Utf8Path) -> Result<BTreeMap<String, u64>> {
         let Some(name) = captures.name("name").map(|capture| capture.as_str()) else {
             continue;
         };
-        if !TRACKED_SECTIONS.contains(&name) {
+        let Some(section) = Section::ALL
+            .iter()
+            .copied()
+            .find(|candidate| name == candidate.as_linker_name())
+        else {
             continue;
-        }
+        };
         let size = parse_hex(
             captures
                 .name("size")
                 .map(|capture| capture.as_str())
                 .unwrap_or_default(),
         )?;
-        sections.insert(name.to_owned(), size);
+        sections.insert(section, size);
     }
 
     Ok(sections)
@@ -66,8 +74,14 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
             .name("section")
             .map(|capture| capture.as_str())
             .unwrap_or_default();
-        let section_root = section_root(full_section);
-        if !TRACKED_SYMBOL_ROOTS.contains(&section_root) {
+        let Some(section) = Section::ALL
+            .iter()
+            .copied()
+            .find(|candidate| full_section.starts_with(candidate.as_linker_name()))
+        else {
+            continue;
+        };
+        if !TRACKED_SYMBOL_SECTIONS.contains(&section) {
             continue;
         }
 
@@ -100,7 +114,7 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
         }
 
         symbols.push(FirmwareSymbolReport {
-            section: section_root.to_owned(),
+            section,
             size_bytes,
             address,
             symbol,
@@ -110,14 +124,6 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
     symbols.sort_by(|left, right| right.size_bytes.cmp(&left.size_bytes));
     symbols.truncate(top);
     Ok(symbols)
-}
-
-fn section_root(section: &str) -> &str {
-    TRACKED_SECTIONS
-        .iter()
-        .copied()
-        .find(|candidate| section.starts_with(candidate))
-        .unwrap_or(section)
 }
 
 fn parse_hex(value: &str) -> Result<u64> {

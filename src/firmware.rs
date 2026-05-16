@@ -9,6 +9,7 @@ use crate::config::ResolvedReport;
 use crate::elf::read_elf_sections;
 use crate::map::{read_map_sections, read_top_symbols};
 use crate::report::{FirmwareBuildReport, FirmwareLinkerReport, FirmwareMemoryReport};
+use crate::section::Section;
 use crate::workspace::WorkspaceLayout;
 use std::collections::BTreeMap;
 
@@ -193,7 +194,7 @@ fn parse_linker_summary(output: &str) -> FirmwareLinkerReport {
 fn collect_sections(
     elf_path: Option<&Utf8Path>,
     map_path: &Utf8Path,
-) -> Result<BTreeMap<String, u64>> {
+) -> Result<BTreeMap<Section, u64>> {
     if let Some(elf_path) = elf_path
         && elf_path.is_file()
     {

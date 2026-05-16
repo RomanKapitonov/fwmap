@@ -5,6 +5,7 @@ mod elf;
 mod firmware;
 mod map;
 mod report;
+mod section;
 mod validate;
 mod workspace;
 

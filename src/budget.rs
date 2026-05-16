@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use camino::Utf8Path;
 use serde::Deserialize;
 
+use crate::section::Section;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FirmwareMemoryBudget {
     pub require_successful_build: bool,
@@ -11,7 +13,7 @@ pub struct FirmwareMemoryBudget {
     pub max_ram_overflow_bytes: Option<u64>,
     pub max_uninit_overflow_bytes: Option<u64>,
     #[serde(default)]
-    pub max_section_bytes: BTreeMap<String, u64>,
+    pub max_section_bytes: BTreeMap<Section, u64>,
     #[serde(default)]
     pub max_symbol_prefix_bytes: BTreeMap<String, u64>,
 }

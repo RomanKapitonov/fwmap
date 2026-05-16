@@ -2,12 +2,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::section::Section;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareMemoryReport {
     pub schema_version: u32,
     pub build: FirmwareBuildReport,
     pub linker: FirmwareLinkerReport,
-    pub sections: BTreeMap<String, u64>,
+    pub sections: BTreeMap<Section, u64>,
     pub top_symbols: Vec<FirmwareSymbolReport>,
 }
 
@@ -31,7 +33,7 @@ pub struct FirmwareLinkerReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareSymbolReport {
-    pub section: String,
+    pub section: Section,
     pub size_bytes: u64,
     pub address: String,
     pub symbol: String,
