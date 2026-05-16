@@ -11,12 +11,15 @@ mod workspace;
 use std::process::ExitCode;
 
 use anyhow::Result;
+use camino::Utf8PathBuf;
 use clap::Parser;
 
 use budget::load_firmware_memory_budget;
 use cli::{Cli, Command};
+use config::{FwmapConfig, ResolvedReport, ResolvedValidate};
 use firmware::{collect_firmware_report, write_firmware_report};
 use validate::validate_firmware_budget;
+use workspace::WorkspaceLayout;
 
 fn main() -> ExitCode {
     match run() {
@@ -30,15 +33,21 @@ fn main() -> ExitCode {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
+    let layout = WorkspaceLayout::discover()?;
+    let cwd = Utf8PathBuf::from_path_buf(std::env::current_dir()?)
+        .map_err(|p| anyhow::anyhow!("cwd is not valid UTF-8: {}", p.display()))?;
+    let config = FwmapConfig::discover(&cwd)?;
 
     match cli.command_or_default() {
         Command::FirmwareReport(args) => {
-            let report = collect_firmware_report(&args)?;
-            write_firmware_report(args.output.as_deref(), &report)
+            let resolved = ResolvedReport::merge(args, &config, &layout)?;
+            let report = collect_firmware_report(&resolved, &layout)?;
+            write_firmware_report(resolved.output.as_deref(), &report)
         }
         Command::FirmwareValidate(args) => {
-            let report = collect_firmware_report(&args.as_report_args(true))?;
-            let budget = load_firmware_memory_budget(&args.budget)?;
+            let resolved = ResolvedValidate::merge(args, &config, &layout)?;
+            let report = collect_firmware_report(&resolved.report, &layout)?;
+            let budget = load_firmware_memory_budget(&resolved.budget)?;
             let errors = validate_firmware_budget(&report, &budget);
 
             if errors.is_empty() {

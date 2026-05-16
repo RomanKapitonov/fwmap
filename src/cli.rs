@@ -20,121 +20,72 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct FirmwareReportArgs {
-    /// Cargo package to build.
-    #[arg(long, default_value = "effects-mcu")]
-    pub package: String,
-    /// Optional output path for the JSON report. Stdout is used when omitted.
+pub struct FirmwareBuildArgs {
+    /// Cargo package to build. Falls back to fwmap.toml `package`.
     #[arg(long)]
-    pub output: Option<Utf8PathBuf>,
-    /// Cargo target triple used for the firmware build.
-    #[arg(long, default_value = "thumbv7em-none-eabihf")]
-    pub target: String,
-    /// Cargo profile used for the firmware build.
-    #[arg(long, default_value = "release")]
-    pub profile: String,
-    /// Cargo features to enable for the firmware build.
-    #[arg(
-        long,
-        value_delimiter = ',',
-        action = ArgAction::Append
-    )]
+    pub package: Option<String>,
+    /// Cargo target triple. Falls back to fwmap.toml `target`.
+    #[arg(long)]
+    pub target: Option<String>,
+    /// Cargo profile. Defaults to "release".
+    #[arg(long)]
+    pub profile: Option<String>,
+    /// Cargo features (comma-separated, repeatable). Falls back to fwmap.toml `features`.
+    #[arg(long, value_delimiter = ',', action = ArgAction::Append)]
     pub features: Vec<String>,
     /// Disable the firmware crate's default feature set.
     #[arg(long)]
     pub no_default_features: bool,
+    /// Override path to the linker `.map` file.
+    #[arg(long)]
+    pub map_path: Option<Utf8PathBuf>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct FirmwareReportArgs {
+    #[command(flatten)]
+    pub build: FirmwareBuildArgs,
+    /// Optional output path for the JSON report. Stdout is used when omitted.
+    #[arg(long)]
+    pub output: Option<Utf8PathBuf>,
     /// Continue and emit a report even when the firmware build fails.
     #[arg(long)]
     pub allow_build_failure: bool,
+    /// Number of top symbols to include in the report.
+    #[arg(long)]
+    pub top_symbols: Option<usize>,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct FirmwareValidateArgs {
-    /// Budget file to validate against.
-    #[arg(long, default_value = "support/memory/firmware-memory-budget.json")]
-    pub budget: Utf8PathBuf,
-    /// Cargo package to build.
-    #[arg(long, default_value = "effects-mcu")]
-    pub package: String,
-    /// Cargo target triple used for the firmware build.
-    #[arg(long, default_value = "thumbv7em-none-eabihf")]
-    pub target: String,
-    /// Cargo profile used for the firmware build.
-    #[arg(long, default_value = "release")]
-    pub profile: String,
-    /// Cargo features to enable for the firmware build.
-    #[arg(
-        long,
-        value_delimiter = ',',
-        action = ArgAction::Append
-    )]
-    pub features: Vec<String>,
-    /// Disable the firmware crate's default feature set.
+    #[command(flatten)]
+    pub build: FirmwareBuildArgs,
+    /// Budget file to validate against. Falls back to fwmap.toml `budget`.
     #[arg(long)]
-    pub no_default_features: bool,
-}
-
-fn default_firmware_features() -> Vec<String> {
-    vec!["greenfield-build".to_owned(), "capture".to_owned()]
+    pub budget: Option<Utf8PathBuf>,
 }
 
 impl Cli {
     pub fn command_or_default(self) -> Command {
         self.command
-            .unwrap_or_else(|| Command::FirmwareReport(FirmwareReportArgs::default_for_fwmap()))
+            .unwrap_or_else(|| Command::FirmwareReport(FirmwareReportArgs::default_for_no_subcommand()))
     }
 }
 
 impl FirmwareReportArgs {
-    fn default_for_fwmap() -> Self {
+    fn default_for_no_subcommand() -> Self {
         Self {
-            package: "effects-mcu".to_owned(),
+            build: FirmwareBuildArgs {
+                package: None,
+                target: None,
+                profile: None,
+                features: Vec::new(),
+                no_default_features: false,
+                map_path: None,
+            },
             output: None,
-            target: "thumbv7em-none-eabihf".to_owned(),
-            profile: "release".to_owned(),
-            features: Vec::new(),
-            no_default_features: false,
             allow_build_failure: true,
-        }
-    }
-}
-
-impl FirmwareReportArgs {
-    pub fn effective_features(&self) -> Vec<String> {
-        if self.features.is_empty() {
-            default_firmware_features()
-        } else {
-            self.features.clone()
-        }
-    }
-
-    pub fn effective_no_default_features(&self) -> bool {
-        self.no_default_features || self.features.is_empty()
-    }
-}
-
-impl FirmwareValidateArgs {
-    pub fn effective_features(&self) -> Vec<String> {
-        if self.features.is_empty() {
-            default_firmware_features()
-        } else {
-            self.features.clone()
-        }
-    }
-
-    pub fn effective_no_default_features(&self) -> bool {
-        self.no_default_features || self.features.is_empty()
-    }
-
-    pub fn as_report_args(&self, allow_build_failure: bool) -> FirmwareReportArgs {
-        FirmwareReportArgs {
-            package: self.package.clone(),
-            output: None,
-            target: self.target.clone(),
-            profile: self.profile.clone(),
-            features: self.effective_features(),
-            no_default_features: self.effective_no_default_features(),
-            allow_build_failure,
+            top_symbols: None,
         }
     }
 }
@@ -146,27 +97,46 @@ mod tests {
     use super::{Cli, Command};
 
     #[test]
-    fn no_subcommand_defaults_to_firmware_report() {
+    fn no_subcommand_defaults_to_firmware_report_with_allow_build_failure() {
         let cli = Cli::try_parse_from(["fwmap"]).expect("no-subcommand CLI should parse");
-
-        assert!(matches!(
-            cli.command_or_default(),
-            Command::FirmwareReport(_)
-        ));
+        let Command::FirmwareReport(args) = cli.command_or_default() else {
+            panic!("expected firmware-report");
+        };
+        assert!(args.allow_build_failure);
     }
 
     #[test]
-    fn default_firmware_features_select_greenfield_capture_build() {
-        let cli = Cli::try_parse_from(["fwmap"]).expect("no-subcommand CLI should parse");
+    fn firmware_report_args_flatten_exposes_shared_fields() {
+        let cli = Cli::try_parse_from([
+            "fwmap",
+            "firmware-report",
+            "--package", "demo",
+            "--target", "thumbv7em-none-eabihf",
+            "--features", "a,b",
+        ])
+        .expect("flattened CLI should parse");
         let Command::FirmwareReport(args) = cli.command_or_default() else {
-            panic!("default command should be firmware-report");
+            panic!("expected firmware-report");
         };
+        assert_eq!(args.build.package.as_deref(), Some("demo"));
+        assert_eq!(args.build.target.as_deref(), Some("thumbv7em-none-eabihf"));
+        assert_eq!(args.build.features, vec!["a".to_owned(), "b".to_owned()]);
+    }
 
-        assert_eq!(
-            args.effective_features(),
-            ["greenfield-build".to_owned(), "capture".to_owned()]
-        );
-        assert!(args.effective_no_default_features());
-        assert!(args.allow_build_failure);
+    #[test]
+    fn firmware_validate_args_share_build_args_with_report() {
+        let cli = Cli::try_parse_from([
+            "fwmap",
+            "firmware-validate",
+            "--package", "demo",
+            "--target", "thumbv7em-none-eabihf",
+            "--budget", "budget.json",
+        ])
+        .expect("flattened validate CLI should parse");
+        let Command::FirmwareValidate(args) = cli.command_or_default() else {
+            panic!("expected firmware-validate");
+        };
+        assert_eq!(args.build.package.as_deref(), Some("demo"));
+        assert_eq!(args.budget.as_deref(), Some(camino::Utf8Path::new("budget.json")));
     }
 }
