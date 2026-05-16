@@ -5,6 +5,7 @@ mod firmware;
 mod map;
 mod report;
 mod validate;
+mod workspace;
 
 use std::process::ExitCode;
 
