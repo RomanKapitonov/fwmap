@@ -1,3 +1,4 @@
+mod address;
 mod budget;
 mod cli;
 mod config;

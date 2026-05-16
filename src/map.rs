@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{collections::BTreeMap, fs};
 
 use anyhow::{Context, Result};
@@ -5,6 +6,7 @@ use camino::Utf8Path;
 use regex::Regex;
 use rustc_demangle::try_demangle;
 
+use crate::address::HexAddress;
 use crate::report::FirmwareSymbolReport;
 use crate::section::Section;
 
@@ -85,10 +87,12 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
             continue;
         }
 
-        let address = entry
+        let address_hex = entry
             .name("vma")
-            .map(|capture| capture.as_str().to_owned())
+            .map(|capture| capture.as_str())
             .unwrap_or_default();
+        let address = HexAddress::from_str(address_hex)
+            .with_context(|| format!("failed to parse address `{address_hex}`"))?;
         let size_hex = entry
             .name("size")
             .map(|capture| capture.as_str())
@@ -97,15 +101,15 @@ pub fn read_top_symbols(path: &Utf8Path, top: usize) -> Result<Vec<FirmwareSymbo
         let mut symbol = full_section.to_owned();
 
         if let Some(next_symbol) = symbol_regex.captures(next) {
-            let next_vma = next_symbol
+            let next_vma_matches = next_symbol
                 .name("vma")
                 .map(|capture| capture.as_str())
-                .unwrap_or_default();
-            let next_size = next_symbol
+                .is_some_and(|vma_str| HexAddress::from_str(vma_str).ok() == Some(address));
+            let next_size_matches = next_symbol
                 .name("size")
                 .map(|capture| capture.as_str())
-                .unwrap_or_default();
-            if next_vma == address && next_size == size_hex {
+                .is_some_and(|size_str| size_str == size_hex);
+            if next_vma_matches && next_size_matches {
                 symbol = next_symbol
                     .name("symbol")
                     .map(|capture| demangle_symbol(capture.as_str().trim()))

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::address::HexAddress;
 use crate::section::Section;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +36,6 @@ pub struct FirmwareLinkerReport {
 pub struct FirmwareSymbolReport {
     pub section: Section,
     pub size_bytes: u64,
-    pub address: String,
+    pub address: HexAddress,
     pub symbol: String,
 }
