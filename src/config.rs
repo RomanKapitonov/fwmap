@@ -40,7 +40,7 @@ impl FwmapConfig {
 
 use anyhow::anyhow;
 
-use crate::cli::{FirmwareReportArgs, FirmwareValidateArgs, FirmwareBuildArgs};
+use crate::cli::{FirmwareReportArgs, FirmwareValidateArgs};
 use crate::workspace::WorkspaceLayout;
 
 const DEFAULT_PROFILE: &str = "release";
